@@ -345,18 +345,33 @@ export const loginOrRegister = async (client, credentials, type, userCount) => {
 }
 
 export const doLoginBatch = async (current, total, step = 10, type) => {
-	let currentClient = 0;
+
 	console.log('login batch', current, total, step);
-	while (current < total) {
-		const batch = [];
-		for (let i = 0; i < step; i++, current++) {
-			// const userCount = current;
-			const credentials = getCredentials(current);
-			batch.push(loginOrRegister(clients[currentClient++], credentials, type, current))
-		}
-		await Promise.all(batch)
+
+	// Splice clients into chunks
+	const clientsCopy = [...clients];
+	const clientsChunks = [];
+	while(clientsCopy.length) {
+		clientsChunks.push(clientsCopy.splice(0, step));
 	}
-	console.log(currentClient, 'logged in');
+	
+	// Process every chunk
+	while(current < total)
+	{
+		for(const clientsToBatch of clientsChunks)
+		{
+			const batch = [];
+			clientsToBatch.forEach(client => {
+				const credentials = getCredentials(current);
+				batch.push(loginOrRegister(client, credentials, type, current));
+				current++;
+			});
+			await Promise.all(batch);
+		}
+	}
+
+	console.log((current - 1), 'logged in');
+
 }
 
 export const doLogin = async (countInit, batchSize = 1, type = 'web') => {
